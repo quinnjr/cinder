@@ -8,7 +8,8 @@ import (
 
 // Log levels.
 const (
-	DebugLevel = iota
+	SilentLevel = iota - 1
+	DebugLevel
 	FatalLevel
 	ErrorLevel
 	WarnLevel
@@ -18,6 +19,8 @@ const (
 // Level of desired log output.
 type Level int
 
+// names is an array of strings corresponding to the
+// const log levels.
 var names = []string{
 	DebugLevel: "debug",
 	FatalLevel: "fatal",
@@ -26,10 +29,13 @@ var names = []string{
 	InfoLevel:  "info",
 }
 
+// levels is a map of the string representation of a level to
+// the corresponding log level constant.
 var levels = map[string]Level{
 	"debug": DebugLevel,
 	"fatal": FatalLevel,
 	"error": ErrorLevel,
+	"warn":  WarnLevel,
 	"info":  InfoLevel,
 }
 

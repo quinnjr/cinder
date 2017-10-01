@@ -29,13 +29,15 @@ func Default() *Handler {
 // HandleLog implements the Handler interface.
 func (h *Handler) HandleLog(e *cinder.Entry) error {
 	level := e.Level.String()
-	names := e.Fields.Fields()
+	names := e.Fields.Keys()
 	start := time.Now()
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	_, err := fmt.Fprintf(h.Writer, "[%s][%d] %-25s", level, time.Since(start)/time.Second, e.Message)
+	since := time.Since(start) / time.Second
+
+	_, err := fmt.Fprintf(h.Writer, "[%s][%d] %-25s", level, since, e.Message)
 	if err != nil {
 		return err
 	}
@@ -52,5 +54,4 @@ func (h *Handler) HandleLog(e *cinder.Entry) error {
 		return err
 	}
 	return nil
-
 }
