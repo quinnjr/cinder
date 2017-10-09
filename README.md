@@ -4,11 +4,18 @@
 
 Cinder is a structured logger for Go.
 
+## Examples
+See: [Examples](_examples) [![:science:](https://imgur.com)]
 
+## Install
+```bash
+  $  go get -u github.com/quinnjr/cinder/...
+```
 
+## Test
+```bash
+  $ cd $GOPATH/src/github.com/quinnjr/cinder
+  $ go test ./...
+```
 
-
-
-
-
-Cinder is heavily inspired by https://github.com/apex/log.
+Cinder is heavily inspired by [Apex's Structured Logger](https://github.com/apex/log).

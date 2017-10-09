@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"io"
+	"os"
 	"sync"
 
 	"github.com/quinnjr/cinder"
@@ -41,6 +42,14 @@ func New(w io.Writer) *Handler {
 	}
 }
 
+// Default ...
+func Default() *Handler {
+	return &Handler{
+		Writer:  os.Stderr,
+		Padding: 3,
+	}
+}
+
 // HandleLog ...
 func (h *Handler) HandleLog(e *cinder.Entry) error {
 	color := colors[e.Level]
@@ -57,7 +66,7 @@ func (h *Handler) HandleLog(e *cinder.Entry) error {
 			continue
 		}
 
-		fmt.Fprintf(h.Writer, " \033[%dm%s\033[0m=%v", color, name, e.Fields.Get(name))
+		fmt.Fprintf(h.Writer, " \033[%dm%s\033[0m=%v", color, name, e.Fields[name])
 	}
 
 	fmt.Fprintln(h.Writer)

@@ -1,10 +1,8 @@
 package file
 
 import (
-	"errors"
 	"fmt"
-	"os"
-	"reflect"
+	"io"
 	"sync"
 
 	"github.com/quinnjr/cinder"
@@ -12,69 +10,45 @@ import (
 
 // Handler implementation.
 type Handler struct {
-	Filepath  string
-	Format    interface{}
-	Timestamp interface{}
-	mu        sync.Mutex
+	File            io.Writer
+	Padding         uint
+	Format          string
+	TimestampFormat string
+	mu              sync.Mutex
 }
-
-// DefaultLogFormat is the default logging format
-var DefaultLogFormat = "[%s] [%s] %s"
-
-// DefaultTimestampFormat is the default timestamp format
-var DefaultTimestampFormat = "02 Jan 2006 03:04:05 MST"
 
 // New returns a new Handler instance.
 // Parameters format and timestamp must be strings or nil. Otherwiser, the Handler will panic.
-func New(fp string, format interface{}, timestamp interface{}) *Handler {
-	if format == nil {
-		format = DefaultLogFormat
-	}
-	if timestamp == nil {
-		timestamp = DefaultTimestampFormat
-	}
-	if reflect.TypeOf(format).Kind() != reflect.String {
-		panic(errors.New("format must be a string"))
-	}
-	if reflect.TypeOf(timestamp).Kind() != reflect.String {
-		panic(errors.New("timestamp must be a string"))
-	}
+func New(f io.Writer) *Handler {
 	return &Handler{
-		Filepath:  fp,
-		Format:    format,
-		Timestamp: timestamp,
+		File:            f,
+		Padding:         3,
+		Format:          "[%s] [%s] %s",
+		TimestampFormat: "02 Jan 2006 03:04:05 MST",
 	}
 }
 
 // HandleLog implements the Handler interface.
-func (h *Handler) HandleLog(e *cinder.Entry) error {
+func (h *Handler) HandleLog(e *cinder.Entry) (err error) {
 	names := e.Fields.Keys()
 	level := e.Level.String()
 	timestamp := e.Timestamp
-
-	fd, err := os.OpenFile(h.Filepath, os.O_RDWR, 0644)
-	if err != nil {
-		return err
-	}
-	defer fd.Close()
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	// New file contents
-	fc := fmt.Sprintf(h.Format.(string), timestamp.Format(h.Timestamp.(string)), level, e.Message)
+	fmt.Fprintf(h.File, h.Format, timestamp.Format(h.TimestampFormat), level, e.Message)
 
 	for _, name := range names {
 		if name == "source" {
 			continue
 		}
-		fc = fc + fmt.Sprintf("%s=%v", name, e.Fields.Get(name))
+		fmt.Fprintf(h.File, "%*s%s=%v", h.Padding, "", name, e.Fields[name])
 	}
 
 	// Add a newline to the end of the new file contents.
-	fc = fmt.Sprintln(fc)
-
-	fd.WriteString(fc)
+	fmt.Fprintln(h.File)
 
 	return nil
 }

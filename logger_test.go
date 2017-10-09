@@ -6,123 +6,165 @@ import (
 
 	"github.com/quinnjr/cinder"
 	"github.com/quinnjr/cinder/handlers/memory"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
-type LoggerSuite struct {
+type loggerSuite struct {
 	suite.Suite
-	Logger *cinder.Logger
+	Logger  *cinder.Logger
+	Handler *memory.Handler
 }
 
-func (s *LoggerSuite) SetupTest() {
-	s.Logger = cinder.New(cinder.DebugLevel, memory.New())
+func (ls *loggerSuite) SetupTest() {
+	ls.Handler = memory.New()
+	ls.Logger = cinder.New(cinder.DebugLevel, ls.Handler)
 }
 
-func (s *LoggerSuite) TestNew() {
-	t := s.T()
-	assert.NotNil(t, s.Logger, "Logger should be instantiated")
-	assert.Equal(t, &cinder.Logger{Level: cinder.DebugLevel, Handler: memory.New()}, s.Logger, "s.Logger should be a proper instance of Logger")
+func (ls *loggerSuite) TestNew() {
+	ls.NotNil(ls.Logger)
+	ls.Equal(&cinder.Logger{Level: cinder.DebugLevel, Handler: memory.New()}, ls.Logger)
 }
 
-func (s *LoggerSuite) TestPrefix() {
-	t := s.T()
-	e := s.Logger.Prefix("test")
-	assert.NotNil(t, e, "Entry should be properly returned from the Prefix function")
-	assert.Equal(t, cinder.Level(0), e.Level, "Entry should be set at level `cinder.DebugLevel`")
-	assert.Equal(t, "test", e.Prefix, "Prefix should be `test`")
+func (ls *loggerSuite) TestWithField() {
+	e := ls.Logger.WithField("hello", "world")
+	ls.Len(e.Fields, 1)
+	ls.Equal("world", e.Fields["hello"])
 }
 
-func (s *LoggerSuite) TestTrace() {
-	t := s.T()
-	trace := s.Logger.Trace("test")
-	assert.NotNil(t, trace, "The trace entry should be properly initialized")
-	assert.Equal(t, cinder.Level(0), trace.Level, "Trace entry shouuld be set at level `cinder.DebugLevel`")
-	assert.Equal(t, "test", trace.Message, "Trace's message should be `test`")
+func (ls *loggerSuite) TestWithFields() {
+	f := cinder.Fields{
+		"hello": "world",
+		"1234":  1234,
+	}
+	e := ls.Logger.WithFields(f)
+	ls.Len(e.Fields, 2)
+	ls.Equal(f, e.Fields)
 }
 
-func (s *LoggerSuite) TestWithField() {
-
-}
-
-func (s *LoggerSuite) TestWithFields() {
-
-}
-
-func (s *LoggerSuite) TestWithError() {
-	t := s.T()
+func (ls *loggerSuite) TestWithError() {
 	expected := "Spicy jalapeno bacon ipsum dolor amet boudin shank porchetta tri-tip"
-	e := s.Logger.WithError(errors.New(expected))
-	assert.NotNil(t, e, "the error log should be initialized")
-	assert.Equal(t, expected, e.Fields["error"], "the error field should be equal to the expected text")
+	e := ls.Logger.WithError(errors.New(expected))
+	ls.NotNil(e)
+	ls.Equal(expected, e.Fields["error"])
 }
 
-func (s *LoggerSuite) TestWithError_Nil() {
-	t := s.T()
-	e := s.Logger.WithError(nil)
-	assert.NotNil(t, e, "The error log should be properly initialized")
-	assert.Equal(t, cinder.DebugLevel, int(e.Level), "The error log should be set to `SilentLevel` to not actually send out any logging information since `(err error)` is nil")
+func (ls *loggerSuite) TestWithError_Nil() {
+	e := ls.Logger.WithError(nil)
+	ls.NotNil(e)
+	ls.Equal(cinder.Level(-1), e.Level)
 }
 
-// // Debug ...
-// func (l *Logger) Debug(msg string) {
-// 	NewEntry(l).Debug(msg)
-// }
-//
-// // Fatal ...
-// func (l *Logger) Fatal(msg string) {
-// 	NewEntry(l).Fatal(msg)
-// }
-//
-// // Error ...
-// func (l *Logger) Error(msg string) {
-// 	NewEntry(l).Error(msg)
-// }
-//
-// // Warn ...
-// func (l *Logger) Warn(msg string) {
-// 	NewEntry(l).Warn(msg)
-// }
-//
-// // Info ...
-// func (l *Logger) Info(msg string) {
-// 	NewEntry(l).Info(msg)
-// }
-//
-// // Debugf ...
-// func (l *Logger) Debugf() {
-//
-// }
-//
-// // Fatalf ...
-// func (l *Logger) Fatalf() {
-//
-// }
-//
-// // Errorf ...
-// func (l *Logger) Errorf() {
-//
-// }
-//
-// // Warnf ...
-// func (l *Logger) Warnf() {
-//
-// }
-//
-// // Infof ...
-// func (l *Logger) Infof() {
-//
-// }
-//
-// func (l *Logger) log(level Level, e *Entry) {
-// 	if level < l.Level || level == SilentLevel {
-// 		return
-// 	}
-// 	if err := l.Handler.HandleLog(e); err != nil {
-// 		stdlog.Printf("eror logging: %s", err)
-// 	}
-// }
+func (ls *loggerSuite) TestDebug() {
+	f := cinder.Fields{"test1": "value1"}
+	ls.Logger.WithFields(f).Debug("debug message")
+	e := ls.Handler.Entries[0]
+
+	ls.Exactly("debug message", e.Message)
+	ls.Exactly(f, e.Fields)
+}
+
+func (ls *loggerSuite) TestFatal() {
+	ls.Logger = cinder.New(cinder.FatalLevel, ls.Handler)
+	err := errors.New("test error")
+	f := cinder.Fields{"error": "test error"}
+	ls.Logger.WithError(err).Fatal("fatal message")
+	e := ls.Handler.Entries[0]
+
+	ls.Exactly(cinder.Level(cinder.FatalLevel), e.Level)
+	ls.Exactly("fatal message", e.Message)
+	ls.Exactly(f, e.Fields)
+}
+
+func (ls *loggerSuite) TestError() {
+	ls.Logger = cinder.New(cinder.ErrorLevel, ls.Handler)
+	err := errors.New("test error")
+	f := cinder.Fields{"error": "test error"}
+	ls.Logger.WithError(err).Error("error message")
+	e := ls.Handler.Entries[0]
+
+	ls.Exactly(cinder.Level(cinder.ErrorLevel), e.Level)
+	ls.Exactly("error message", e.Message)
+	ls.Exactly(f, e.Fields)
+}
+
+func (ls *loggerSuite) TestWarn() {
+	ls.Logger = cinder.New(cinder.WarnLevel, ls.Handler)
+	f := cinder.Fields{"warn field": "warn value"}
+	ls.Logger.WithFields(f).Warn("warn message")
+	e := ls.Handler.Entries[0]
+
+	ls.Exactly(cinder.Level(cinder.WarnLevel), e.Level)
+	ls.Exactly("warn message", e.Message)
+	ls.Exactly(f, e.Fields)
+}
+
+func (ls *loggerSuite) TestInfo() {
+	ls.Logger = cinder.New(cinder.InfoLevel, ls.Handler)
+	f := cinder.Fields{"info field": "info value"}
+	ls.Logger.WithFields(f).Info("info message")
+	e := ls.Handler.Entries[0]
+
+	ls.Exactly(cinder.Level(cinder.InfoLevel), e.Level)
+	ls.Exactly("info message", e.Message)
+	ls.Exactly(f, e.Fields)
+}
+
+func (ls *loggerSuite) TestDebugf() {
+	f := cinder.Fields{"debug field": "debug value"}
+	ls.Logger.WithFields(f).Debugf("%s", "debug message")
+	e := ls.Handler.Entries[0]
+
+	ls.Exactly(cinder.Level(cinder.DebugLevel), e.Level)
+	ls.Exactly("[debug message]", e.Message)
+	ls.Exactly(f, e.Fields)
+}
+
+func (ls *loggerSuite) TestFatalf() {
+	err := errors.New("fatal error")
+	f := cinder.Fields{"error": "fatal error"}
+	ls.Logger.Level = cinder.FatalLevel
+	ls.Logger.WithError(err).Fatalf("%s", "fatal message")
+	e := ls.Handler.Entries[0]
+
+	ls.Exactly(cinder.Level(cinder.FatalLevel), e.Level)
+	ls.Exactly("[fatal message]", e.Message)
+	ls.Exactly(f, e.Fields)
+}
+
+func (ls *loggerSuite) TestErrorf() {
+	err := errors.New("error error")
+	f := cinder.Fields{"error": "error error"}
+	ls.Logger.Level = cinder.ErrorLevel
+	ls.Logger.WithError(err).Errorf("%s", "error message")
+	e := ls.Handler.Entries[0]
+
+	ls.Exactly(cinder.Level(cinder.ErrorLevel), e.Level)
+	ls.Exactly("[error message]", e.Message)
+	ls.Exactly(f, e.Fields)
+}
+
+func (ls *loggerSuite) TestWarnf() {
+	f := cinder.Fields{"warning": "warning thing"}
+	ls.Logger.Level = cinder.WarnLevel
+	ls.Logger.WithFields(f).Warnf("%s", "warn message")
+	e := ls.Handler.Entries[0]
+
+	ls.Exactly(cinder.Level(cinder.WarnLevel), e.Level)
+	ls.Exactly("[warn message]", e.Message)
+	ls.Exactly(f, e.Fields)
+}
+
+func (ls *loggerSuite) TestInfof() {
+	f := cinder.Fields{"info": "info thing"}
+	ls.Logger.Level = cinder.InfoLevel
+	ls.Logger.WithFields(f).Infof("%s", "info message")
+	e := ls.Handler.Entries[0]
+
+	ls.Exactly(cinder.Level(cinder.InfoLevel), e.Level)
+	ls.Exactly("[info message]", e.Message)
+	ls.Exactly(f, e.Fields)
+}
 
 func TestLoggerSuite(t *testing.T) {
-	suite.Run(t, new(LoggerSuite))
+	suite.Run(t, new(loggerSuite))
 }

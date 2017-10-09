@@ -1,47 +1,55 @@
-package text
+package text_test
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/quinnjr/cinder"
-	"github.com/stretchr/testify/assert"
+	"github.com/quinnjr/cinder/handlers/text"
 	"github.com/stretchr/testify/suite"
 )
 
 type TextSuite struct {
 	suite.Suite
+	Handler *text.Handler
+}
+
+func (ts *TextSuite) TestDefault() {
+	ts.NotPanics(func() {
+		ts.Handler = text.Default()
+	})
+	ts.NotNil(ts.Handler)
+	ts.Equal(os.Stderr, ts.Handler.Writer)
+}
+
+func (ts *TextSuite) TestNew() {
+	ts.NotPanics(func() {
+		ts.Handler = text.New(os.Stderr)
+	})
+	ts.NotNil(ts.Handler)
+	ts.Equal(os.Stderr, ts.Handler.Writer)
+}
+
+func (ts *TextSuite) TestHandleLog() {
+	var buf bytes.Buffer
+
+	ts.NotPanics(func() {
+		ts.Handler = text.New(&buf)
+	})
+
+	logger := cinder.New(cinder.DebugLevel, ts.Handler)
+	e := logger.WithField("user", "quinnjr").WithFields(cinder.Fields{
+		"test": "1234",
+	})
+	e.Debug("hello world")
+
+	expected := "[DEBUG] [0000] hello world         test=1234user=quinnjr\n"
+
+	ts.Equal(expected, buf.String())
+
 }
 
 func TestTextSuite(t *testing.T) {
 	suite.Run(t, new(TextSuite))
-}
-
-func (s *TextSuite) TestDefault() {
-	h := Default()
-	assert.NotNil(s.T(), h, "the handler should be initialized")
-	// assert.Implements(t, cinder.Handler, h, "handler should implement the Handler interface")
-}
-
-func (s *TextSuite) TestNew() {
-	var buf bytes.Buffer
-	logger := cinder.New(cinder.DebugLevel, New(&buf))
-	assert.NotNil(s.T(), logger, "logger should be initialized")
-
-	// assert.Equal(t, cinder.Logger, logger, "logger should be an instance of cinder.Logger")
-
-}
-
-func (s *TextSuite) TestHandleLog() {
-	var buf bytes.Buffer
-
-	logger := cinder.New(cinder.DebugLevel, New(&buf))
-	logger.WithField("user", "quinnjr").WithFields(cinder.Fields{
-		"test": "1234",
-	}).Debug("hello world")
-
-	expected := "[debug][0] hello world              test=1234user=quinnjr\n"
-
-	assert.Equal(s.T(), expected, buf.String())
-
 }

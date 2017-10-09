@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/quinnjr/cinder"
 )
+
+var start = time.Now()
 
 // Handler implementation.
 type Handler struct {
@@ -28,30 +31,21 @@ func Default() *Handler {
 
 // HandleLog implements the Handler interface.
 func (h *Handler) HandleLog(e *cinder.Entry) error {
-	level := e.Level.String()
+	level := strings.ToUpper(e.Level.String())
 	names := e.Fields.Keys()
-	start := time.Now()
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	since := time.Since(start) / time.Second
 
-	_, err := fmt.Fprintf(h.Writer, "[%s][%d] %-25s", level, since, e.Message)
-	if err != nil {
-		return err
-	}
+	fmt.Fprintf(h.Writer, "[%s] [%04d] %-20s", level, since, e.Message)
 
 	for _, name := range names {
-		_, err = fmt.Fprintf(h.Writer, "%s=%v", name, e.Fields.Get(name))
-		if err != nil {
-			return err
-		}
+		fmt.Fprintf(h.Writer, "%s=%-3v", name, e.Fields[name])
 	}
 
-	_, err = fmt.Fprintln(h.Writer)
-	if err != nil {
-		return err
-	}
+	fmt.Fprintln(h.Writer)
+
 	return nil
 }

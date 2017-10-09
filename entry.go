@@ -2,7 +2,13 @@ package cinder
 
 import (
 	"fmt"
+	"os"
+	"strings"
 	"time"
+
+	stdlog "log"
+
+	"github.com/pkg/errors"
 )
 
 // Entry ...
@@ -11,20 +17,17 @@ type Entry struct {
 	Fields    Fields    `json:"fields,omitempty"`
 	Level     Level     `json:"level"`
 	Message   string    `json:"message"`
-	Prefix    string    `json:"prefix,omitempty"`
 	Timestamp time.Time `json:"timestamp"`
 	start     time.Time
 }
 
-// NewEntry returns a new log entry.
-func NewEntry(l *Logger) *Entry {
-	return &Entry{Logger: l, Fields: Fields{}, Timestamp: time.Now().Local(), start: time.Now().Local()}
+type stackTracer interface {
+	StackTrace() errors.StackTrace
 }
 
-// WithPrefix returns an Entry with a prefix.
-func (e *Entry) WithPrefix(pre string) *Entry {
-	e.Prefix = pre
-	return e
+// NewEntry returns a new log entry.
+func newEntry(l *Logger) *Entry {
+	return &Entry{Logger: l, Fields: make(Fields), Level: l.Level}
 }
 
 // WithFields returns an Entry with the supplied Fields added to the Entry's Fields.
@@ -44,33 +47,37 @@ func (e *Entry) WithField(key string, value interface{}) *Entry {
 
 // WithError returns an Entry with err set as a Field
 func (e *Entry) WithError(err error) *Entry {
-	f := e.Fields
-	// Ensure that the "error" field is the first field if a valid error is recieved.
-	var m Fields
-	if err != nil {
-		m = Fields{"error": err.Error()}
+	if err == nil {
+		return e
 	}
-	// TODO: Implement stack trace here
+
+	f := newEntry(e.Logger).WithField("error", err.Error())
+
+	// stack tracing
+	if s, ok := err.(stackTracer); ok {
+		fr := s.StackTrace()[0]
+		name := fmt.Sprintf("%n", fr)
+		file := fmt.Sprintf("%+s", fr)
+		line := fmt.Sprintf("%d", fr)
+
+		p := strings.Split(file, "\n\t")
+		if len(p) > 1 {
+			file = p[1]
+		}
+		f = f.WithField("source", fmt.Sprintf("%s: %s:%s", name, file, line))
+	}
 	// Merge already set Fields with the error field.
-	for k := range f {
-		m[k] = f[k]
-	}
-	e.Fields = m
-	return e
+	f = f.WithFields(e.Fields)
+	return f
 }
 
 // Trace ...
 func (e *Entry) Trace(msg string) *Entry {
 	e.Info(msg)
-	return &Entry{
-		Logger:    e.Logger,
-		Level:     e.Level,
-		Fields:    e.Fields,
-		Timestamp: e.Timestamp,
-		Message:   e.Message,
-		Prefix:    e.Prefix,
-		start:     time.Now(),
-	}
+	tr := e.WithFields(e.Fields)
+	tr.Message = msg
+	tr.start = time.Now()
+	return tr
 }
 
 // Stop ...
@@ -78,38 +85,33 @@ func (e *Entry) Stop(err *error) {
 	if err == nil || *err == nil {
 		e.WithField("duration", time.Since(e.start)).Info(e.Message)
 	} else {
-		e.WithField("duration", time.Since(e.start)).WithError(*err).Error(e.Message)
+		e.WithError(*err).WithField("duration", time.Since(e.start)).Error(e.Message)
 	}
 }
 
 // Debug ...
 func (e *Entry) Debug(msg string) {
-	e.Message = msg
-	e.Logger.log(DebugLevel, e)
+	e.log(DebugLevel, msg)
 }
 
 // Fatal ...
 func (e *Entry) Fatal(msg string) {
-	e.Message = msg
-	e.Logger.log(FatalLevel, e)
+	e.log(FatalLevel, msg)
 }
 
 // Error ...
 func (e *Entry) Error(msg string) {
-	e.Message = msg
-	e.Logger.log(ErrorLevel, e)
+	e.log(ErrorLevel, msg)
 }
 
 // Warn ...
 func (e *Entry) Warn(msg string) {
-	e.Message = msg
-	e.Logger.log(WarnLevel, e)
+	e.log(WarnLevel, msg)
 }
 
 // Info ...
 func (e *Entry) Info(msg string) {
-	e.Message = msg
-	e.Logger.log(InfoLevel, e)
+	e.log(InfoLevel, msg)
 }
 
 // Debugf ...
@@ -135,4 +137,29 @@ func (e *Entry) Warnf(format string, a ...interface{}) {
 // Infof ...
 func (e *Entry) Infof(format string, a ...interface{}) {
 	e.Info(fmt.Sprintf(format, a))
+}
+
+// finalize returns the Entry with all of the correct fields populated.
+func (e *Entry) finalize(level Level, msg string) *Entry {
+	e.Level = level
+	e.Message = msg
+	e.Timestamp = time.Now()
+	return e
+}
+
+// log handlers the actual logging event by checking if the
+// argument level is above the threshold of the Logger's
+// Level field. If the level is good, log calls the Handler's
+// HandlerLog fucntion with the finalized level and message.
+func (e *Entry) log(level Level, msg string) {
+	l := e.Logger
+	if level < l.Level || level == silentLevel {
+		return
+	}
+	if err := l.Handler.HandleLog(e.finalize(level, msg)); err != nil {
+		stdlog.Printf("error logging: %s", err)
+	}
+	if level == FatalLevel {
+		os.Exit(1)
+	}
 }

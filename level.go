@@ -8,7 +8,7 @@ import (
 
 // Log levels.
 const (
-	SilentLevel = iota - 1
+	silentLevel = iota - 1
 	DebugLevel
 	FatalLevel
 	ErrorLevel
@@ -50,12 +50,12 @@ func (l Level) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
-func (l *Level) UnmarshalJSON(b []byte) error {
+func (l *Level) UnmarshalJSON(b []byte) (err error) {
 	s := string(bytes.Trim(b, `"`))
 	v, ok := levels[strings.ToLower(s)]
 	if !ok {
-		return errors.New("invalid log level")
+		err = errors.New("invalid log level")
 	}
 	*l = v
-	return nil
+	return
 }
