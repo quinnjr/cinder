@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/quinnjr/cinder"
-	"github.com/quinnjr/cinder/handlers"
 	"github.com/quinnjr/cinder/handlers/file"
 	"github.com/stretchr/testify/suite"
 )
@@ -29,8 +28,8 @@ func (fs *fileSuite) TestNewWithFormat() {
 	var buf bytes.Buffer
 	f := file.New(&buf)
 	fs.NotNil(f)
-	fs.Exactly(handlers.DefaultFormat, f.GetFormat())
-	fs.Exactly(handlers.DefaultTimestamp, f.GetTimestamp())
+	fs.Exactly(file.DefaultFormat, f.GetFormat())
+	fs.Exactly(file.DefaultTimestamp, f.GetTimestamp())
 	f.SetTimestamp("")
 	f.SetFormat("")
 	fs.Equal("", f.GetFormat())
@@ -48,7 +47,7 @@ func (fs *fileSuite) TestHandleLog() {
 	})
 	entry.Debug("test log entry")
 
-	expected := "[DEBUG] [" + entry.Timestamp.Format(handlers.DefaultTimestamp) + "] test log entry   test1=key1\n"
+	expected := "[DEBUG] [" + entry.Timestamp.Format(file.DefaultTimestamp) + "] test log entry   test1=key1\n"
 
 	actual := buf.String()
 	fs.NotEmpty(actual)

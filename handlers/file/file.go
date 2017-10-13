@@ -7,7 +7,13 @@ import (
 	"sync"
 
 	"github.com/quinnjr/cinder"
-	"github.com/quinnjr/cinder/handlers"
+)
+
+const (
+	// DefaultTimestamp The default timestamp format
+	DefaultTimestamp = "02-Jan-06 03:04:05 MST"
+	// DefaultFormat The default output format
+	DefaultFormat = "[%s] [%s] %s"
 )
 
 // Handler implementation.
@@ -25,8 +31,8 @@ func New(f io.Writer) *Handler {
 	return &Handler{
 		File:      f,
 		padding:   3,
-		format:    handlers.DefaultFormat,
-		timestamp: handlers.DefaultTimestamp,
+		format:    DefaultFormat,
+		timestamp: DefaultTimestamp,
 	}
 }
 
