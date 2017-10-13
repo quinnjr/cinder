@@ -2,6 +2,8 @@ package cinder_test
 
 import (
 	"errors"
+	"os"
+	"os/exec"
 	"testing"
 
 	"github.com/quinnjr/cinder"
@@ -20,18 +22,18 @@ func (ls *loggerSuite) SetupTest() {
 	ls.Logger = cinder.New(cinder.DebugLevel, ls.Handler)
 }
 
-func (ls *loggerSuite) TestNew() {
+func (ls *loggerSuite) TestLoggerNew() {
 	ls.NotNil(ls.Logger)
 	ls.Equal(&cinder.Logger{Level: cinder.DebugLevel, Handler: memory.New()}, ls.Logger)
 }
 
-func (ls *loggerSuite) TestWithField() {
+func (ls *loggerSuite) TestLoggerWithField() {
 	e := ls.Logger.WithField("hello", "world")
 	ls.Len(e.Fields, 1)
 	ls.Equal("world", e.Fields["hello"])
 }
 
-func (ls *loggerSuite) TestWithFields() {
+func (ls *loggerSuite) TestLoggerWithFields() {
 	f := cinder.Fields{
 		"hello": "world",
 		"1234":  1234,
@@ -41,20 +43,20 @@ func (ls *loggerSuite) TestWithFields() {
 	ls.Equal(f, e.Fields)
 }
 
-func (ls *loggerSuite) TestWithError() {
+func (ls *loggerSuite) TestLoggerWithError() {
 	expected := "Spicy jalapeno bacon ipsum dolor amet boudin shank porchetta tri-tip"
 	e := ls.Logger.WithError(errors.New(expected))
 	ls.NotNil(e)
 	ls.Equal(expected, e.Fields["error"])
 }
 
-func (ls *loggerSuite) TestWithError_Nil() {
+func (ls *loggerSuite) TestLoggerWithError_Nil() {
 	e := ls.Logger.WithError(nil)
 	ls.NotNil(e)
 	ls.Equal(cinder.Level(-1), e.Level)
 }
 
-func (ls *loggerSuite) TestDebug() {
+func (ls *loggerSuite) TestLoggerDebug() {
 	f := cinder.Fields{"test1": "value1"}
 	ls.Logger.WithFields(f).Debug("debug message")
 	e := ls.Handler.Entries[0]
@@ -63,19 +65,22 @@ func (ls *loggerSuite) TestDebug() {
 	ls.Exactly(f, e.Fields)
 }
 
-func (ls *loggerSuite) TestFatal() {
-	ls.Logger = cinder.New(cinder.FatalLevel, ls.Handler)
-	err := errors.New("test error")
+func (ls *loggerSuite) TestLoggerFatal() {
 	f := cinder.Fields{"error": "test error"}
-	ls.Logger.WithError(err).Fatal("fatal message")
-	e := ls.Handler.Entries[0]
-
-	ls.Exactly(cinder.Level(cinder.FatalLevel), e.Level)
-	ls.Exactly("fatal message", e.Message)
-	ls.Exactly(f, e.Fields)
+	if os.Getenv("LOGGERCRASH") == "1" {
+		ls.Logger.WithError(errors.New("test error")).Fatal("this should crash")
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=TestLoggerFatal")
+	cmd.Env = append(os.Environ(), "LOGGERCRASH=1")
+	err := cmd.Run()
+	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
+		ls.Exactly(cinder.Level(cinder.FatalLevel), ls.Logger.Level)
+		ls.Exactly("this should crash", ls.Logger.Entry.Message)
+		ls.Exactly(f, ls.Logger.Entry.Fields)
+	}
 }
 
-func (ls *loggerSuite) TestError() {
+func (ls *loggerSuite) TestLoggerError() {
 	ls.Logger = cinder.New(cinder.ErrorLevel, ls.Handler)
 	err := errors.New("test error")
 	f := cinder.Fields{"error": "test error"}
@@ -87,7 +92,7 @@ func (ls *loggerSuite) TestError() {
 	ls.Exactly(f, e.Fields)
 }
 
-func (ls *loggerSuite) TestWarn() {
+func (ls *loggerSuite) TestLoggerWarn() {
 	ls.Logger = cinder.New(cinder.WarnLevel, ls.Handler)
 	f := cinder.Fields{"warn field": "warn value"}
 	ls.Logger.WithFields(f).Warn("warn message")
@@ -98,7 +103,7 @@ func (ls *loggerSuite) TestWarn() {
 	ls.Exactly(f, e.Fields)
 }
 
-func (ls *loggerSuite) TestInfo() {
+func (ls *loggerSuite) TestLoggerInfo() {
 	ls.Logger = cinder.New(cinder.InfoLevel, ls.Handler)
 	f := cinder.Fields{"info field": "info value"}
 	ls.Logger.WithFields(f).Info("info message")
@@ -109,7 +114,7 @@ func (ls *loggerSuite) TestInfo() {
 	ls.Exactly(f, e.Fields)
 }
 
-func (ls *loggerSuite) TestDebugf() {
+func (ls *loggerSuite) TestLoggerDebugf() {
 	f := cinder.Fields{"debug field": "debug value"}
 	ls.Logger.WithFields(f).Debugf("%s", "debug message")
 	e := ls.Handler.Entries[0]
@@ -119,19 +124,20 @@ func (ls *loggerSuite) TestDebugf() {
 	ls.Exactly(f, e.Fields)
 }
 
-func (ls *loggerSuite) TestFatalf() {
-	err := errors.New("fatal error")
-	f := cinder.Fields{"error": "fatal error"}
-	ls.Logger.Level = cinder.FatalLevel
-	ls.Logger.WithError(err).Fatalf("%s", "fatal message")
-	e := ls.Handler.Entries[0]
-
-	ls.Exactly(cinder.Level(cinder.FatalLevel), e.Level)
-	ls.Exactly("[fatal message]", e.Message)
-	ls.Exactly(f, e.Fields)
+func (ls *loggerSuite) TestLoggerFatalf() {
+	if os.Getenv("LOGGERCRASH") == "2" {
+		ls.Logger.Fatalf("%s", "this should crash")
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=TestLoggerFatalf")
+	cmd.Env = append(os.Environ(), "LOGGERCRASH=2")
+	err := cmd.Run()
+	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
+		ls.Exactly(cinder.Level(cinder.FatalLevel), ls.Logger.Level)
+		ls.Exactly("this should crash", ls.Logger.Entry.Message)
+	}
 }
 
-func (ls *loggerSuite) TestErrorf() {
+func (ls *loggerSuite) TestLoggerErrorf() {
 	err := errors.New("error error")
 	f := cinder.Fields{"error": "error error"}
 	ls.Logger.Level = cinder.ErrorLevel
@@ -143,7 +149,7 @@ func (ls *loggerSuite) TestErrorf() {
 	ls.Exactly(f, e.Fields)
 }
 
-func (ls *loggerSuite) TestWarnf() {
+func (ls *loggerSuite) TestLoggerWarnf() {
 	f := cinder.Fields{"warning": "warning thing"}
 	ls.Logger.Level = cinder.WarnLevel
 	ls.Logger.WithFields(f).Warnf("%s", "warn message")
@@ -154,7 +160,7 @@ func (ls *loggerSuite) TestWarnf() {
 	ls.Exactly(f, e.Fields)
 }
 
-func (ls *loggerSuite) TestInfof() {
+func (ls *loggerSuite) TestLoggerInfof() {
 	f := cinder.Fields{"info": "info thing"}
 	ls.Logger.Level = cinder.InfoLevel
 	ls.Logger.WithFields(f).Infof("%s", "info message")

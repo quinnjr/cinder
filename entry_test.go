@@ -2,6 +2,8 @@ package cinder_test
 
 import (
 	"errors"
+	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -23,12 +25,12 @@ func (es *entrySuite) SetupTest() {
 	es.Entry = es.Logger.NewEntry()
 }
 
-func (es *entrySuite) TestWithField() {
+func (es *entrySuite) TestEntryWithField() {
 	f := es.Entry.WithField("test key", "test value")
 	es.Equal("test value", f.Fields["test key"])
 }
 
-func (es *entrySuite) TestWithFields() {
+func (es *entrySuite) TestEntryWithFields() {
 	e := es.Entry.WithFields(cinder.Fields{
 		"test key 1": "value1",
 		"test key 2": 123456,
@@ -38,14 +40,14 @@ func (es *entrySuite) TestWithFields() {
 	es.Equal(123456, e.Fields["test key 2"])
 }
 
-func (es *entrySuite) TestWithError() {
+func (es *entrySuite) TestEntryWithError() {
 	err := errors.New("test error")
 	e := es.Entry.WithError(err)
 	es.EqualError(err, "test error")
 	es.Equal("test error", e.Fields["error"])
 }
 
-func (es *entrySuite) TestWithErrorMultiField() {
+func (es *entrySuite) TestEntryWithErrorMultiField() {
 	err := errors.New("test error")
 	es.Error(err)
 	e := es.Entry.WithError(err).WithFields(cinder.Fields{
@@ -59,13 +61,13 @@ func (es *entrySuite) TestWithErrorMultiField() {
 	es.Equal(false, e.Fields["field2"])
 }
 
-func (es *entrySuite) TestNewTrace() {
+func (es *entrySuite) TestEntryNewTrace() {
 	trace := es.Logger.Trace("new trace")
 	es.NotNil(trace)
 	es.Equal("new trace", trace.Message)
 }
 
-func (es *entrySuite) TestTraceStopWithoutError() {
+func (es *entrySuite) TestEntryTraceStopWithoutError() {
 	func() (err error) {
 		defer es.Logger.WithField("file", "wut.png").Trace("test trace").Stop(&err)
 		return nil
@@ -86,7 +88,7 @@ func (es *entrySuite) TestTraceStopWithoutError() {
 	}
 }
 
-func (es *entrySuite) TestTraceStopWithError() {
+func (es *entrySuite) TestEntryTraceStopWithError() {
 	func() (err error) {
 		err = errors.New("test error")
 		defer es.Logger.WithField("file", "wut.png").Trace("test trace").Stop(&err)
@@ -109,7 +111,7 @@ func (es *entrySuite) TestTraceStopWithError() {
 	}
 }
 
-func (es *entrySuite) TestLevel() {
+func (es *entrySuite) TestEntryLevel() {
 	es.Equal(cinder.Level(cinder.DebugLevel), es.Entry.Level)
 	es.Entry.Level = cinder.FatalLevel
 	es.Equal(cinder.Level(cinder.FatalLevel), es.Entry.Level)
@@ -121,7 +123,7 @@ func (es *entrySuite) TestLevel() {
 	es.Equal(cinder.Level(cinder.InfoLevel), es.Entry.Level)
 }
 
-func (es *entrySuite) TestDebug() {
+func (es *entrySuite) TestEntryDebug() {
 	es.Entry.Debug("debug message")
 
 	e := es.Handler.Entries[0]
@@ -130,17 +132,20 @@ func (es *entrySuite) TestDebug() {
 	es.Exactly(cinder.Level(cinder.DebugLevel), e.Level)
 }
 
-func (es *entrySuite) TestFatal() {
-	es.Logger.Level = cinder.FatalLevel
-	es.Entry.Fatal("fatal message")
-
-	e := es.Handler.Entries[0]
-
-	es.Exactly("fatal message", e.Message)
-	es.Exactly(cinder.Level(cinder.FatalLevel), e.Level)
+func (es *entrySuite) TestEntryFatal() {
+	if os.Getenv("ENTRYCRASH") == "1" {
+		es.Entry.Fatal("this should crash")
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=TestEntryFatal")
+	cmd.Env = append(os.Environ(), "ENTRYCRASH=1")
+	err := cmd.Run()
+	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
+		es.Exactly(cinder.Level(cinder.FatalLevel), es.Entry.Level)
+		es.Exactly("this should crash", es.Entry.Message)
+	}
 }
 
-func (es *entrySuite) TestError() {
+func (es *entrySuite) TestEntryError() {
 	es.Logger.Level = cinder.ErrorLevel
 	es.Entry.Error("error message")
 
@@ -150,7 +155,7 @@ func (es *entrySuite) TestError() {
 	es.Exactly(cinder.Level(cinder.ErrorLevel), e.Level)
 }
 
-func (es *entrySuite) TestWarn() {
+func (es *entrySuite) TestEntryWarn() {
 	es.Logger.Level = cinder.WarnLevel
 	es.Entry.Warn("warn message")
 
@@ -160,7 +165,7 @@ func (es *entrySuite) TestWarn() {
 	es.Exactly(cinder.Level(cinder.WarnLevel), e.Level)
 }
 
-func (es *entrySuite) TestInfo() {
+func (es *entrySuite) TestEntryInfo() {
 	es.Logger.Level = cinder.InfoLevel
 	es.Entry.Info("info message")
 
@@ -170,7 +175,7 @@ func (es *entrySuite) TestInfo() {
 	es.Exactly(cinder.Level(cinder.InfoLevel), e.Level)
 }
 
-func (es *entrySuite) TestSilence() {
+func (es *entrySuite) TestEntrySilence() {
 	es.Logger.Level = cinder.InfoLevel
 	es.Entry.Warn("warn message")
 

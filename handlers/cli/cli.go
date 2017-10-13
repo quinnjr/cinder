@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/quinnjr/cinder"
 )
+
+const DefaultTimestamp = "02-Jan-06 03:04:05 MST"
 
 // Colors
 const (
@@ -53,20 +56,23 @@ func Default() *Handler {
 // HandleLog ...
 func (h *Handler) HandleLog(e *cinder.Entry) error {
 	color := colors[e.Level]
-	level := e.Level.String()
+	level := strings.ToUpper(e.Level.String())
 	names := e.Fields.Keys()
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	fmt.Fprintf(h.Writer, "\033[%dm%*s\033[0m %-25s", color, h.Padding+1, level, e.Message)
+	fmt.Fprintf(h.Writer, "%s \033[%dm%*s\033[0m %s%*s", e.Timestamp.Format(DefaultTimestamp), color, h.Padding+1, level, e.Message, h.Padding+1, "")
 
-	for _, name := range names {
+	for k, name := range names {
 		if name == "source" {
 			continue
 		}
-
-		fmt.Fprintf(h.Writer, " \033[%dm%s\033[0m=%v", color, name, e.Fields[name])
+		if k == 0 {
+			fmt.Fprintf(h.Writer, "\033[%dm%s\033[0m=%v", color, name, e.Fields[name])
+		} else {
+			fmt.Fprintf(h.Writer, "%*s\033[%dm%s\033[0m=%v%*s", h.Padding+1, "", color, name, e.Fields[name], h.Padding+1, "")
+		}
 	}
 
 	fmt.Fprintln(h.Writer)

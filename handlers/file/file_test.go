@@ -2,10 +2,10 @@ package file_test
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
 
 	"github.com/quinnjr/cinder"
+	"github.com/quinnjr/cinder/handlers"
 	"github.com/quinnjr/cinder/handlers/file"
 	"github.com/stretchr/testify/suite"
 )
@@ -29,24 +29,13 @@ func (fs *fileSuite) TestNewWithFormat() {
 	var buf bytes.Buffer
 	f := file.New(&buf)
 	fs.NotNil(f)
-	f.TimestampFormat = ""
-	f.Format = ""
-	fs.Equal("", f.Format)
-	fs.Equal("", f.TimestampFormat)
+	fs.Exactly(handlers.DefaultFormat, f.GetFormat())
+	fs.Exactly(handlers.DefaultTimestamp, f.GetTimestamp())
+	f.SetTimestamp("")
+	f.SetFormat("")
+	fs.Equal("", f.GetFormat())
+	fs.Equal("", f.GetTimestamp())
 	fs.Implements((*cinder.Handler)(nil), f)
-}
-
-func expectedFileContents(e *cinder.Entry) string {
-	fc := fmt.Sprintf("[%s] [%s] %s", e.Timestamp.Format("02 Jan 2006 03:04:05 MST"), e.Level, e.Message)
-	names := e.Fields.Keys()
-	for _, name := range names {
-		if name == "source" {
-			continue
-		}
-		fc = fc + fmt.Sprintf("%*s%s=%v", 3, "", name, e.Fields[name])
-	}
-	fc = fc + fmt.Sprintln()
-	return fc
 }
 
 func (fs *fileSuite) TestHandleLog() {
@@ -59,7 +48,7 @@ func (fs *fileSuite) TestHandleLog() {
 	})
 	entry.Debug("test log entry")
 
-	expected := expectedFileContents(entry)
+	expected := "[DEBUG] [" + entry.Timestamp.Format(handlers.DefaultTimestamp) + "] test log entry   test1=key1\n"
 
 	actual := buf.String()
 	fs.NotEmpty(actual)

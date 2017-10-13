@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/quinnjr/cinder"
-	"github.com/quinnjr/cinder/handlers/text"
+	"github.com/quinnjr/cinder/handlers/cli"
 )
 
 func main() {
 
 	// Instantiate a new logger
-	logger := cinder.New(cinder.FatalLevel, text.Default())
+	logger := cinder.New(cinder.FatalLevel, cli.Default())
 
 	// Log an info message
 	logger.Info("This is an info message")

@@ -23,7 +23,7 @@ func (hs *handlerSuite) TestHandlerInterface() {
 	hs.Implements((*cinder.Handler)(nil), hs.Handler)
 }
 
-func (hs *handlerSuite) TestHandleLog() {
+func (hs *handlerSuite) TestHandlerHandleLog() {
 	e := hs.Logger.WithField("test", "field")
 	err := hs.Handler.HandleLog(e)
 	hs.NoError(err)

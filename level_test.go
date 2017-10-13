@@ -34,7 +34,7 @@ func (ls *levelSuite) TestLevelString() {
 	}
 }
 
-func (ls *levelSuite) TestMarshalJSON() {
+func (ls *levelSuite) TestLevelMarshalJSON() {
 	m, err := ls.Logger.Level.MarshalJSON()
 	if err != nil {
 		ls.Error(err)
@@ -42,7 +42,7 @@ func (ls *levelSuite) TestMarshalJSON() {
 	ls.Equal([]byte(`"debug"`), m)
 }
 
-func (ls *levelSuite) TestUnmarshalJSON() {
+func (ls *levelSuite) TestLevelUnmarshalJSON() {
 	b := []byte(`{"level": "debug"}`)
 	err := ls.Logger.Level.UnmarshalJSON(b)
 	if err != nil {

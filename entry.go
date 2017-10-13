@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	stdlog "log"
-
 	"github.com/pkg/errors"
 )
 
@@ -90,53 +88,57 @@ func (e *Entry) Stop(err *error) {
 }
 
 // Debug ...
-func (e *Entry) Debug(msg string) {
-	e.log(DebugLevel, msg)
+func (e *Entry) Debug(msg string) error {
+	return e.log(DebugLevel, msg)
 }
 
 // Fatal ...
-func (e *Entry) Fatal(msg string) {
-	e.log(FatalLevel, msg)
+func (e *Entry) Fatal(msg string) (err error) {
+	err = e.log(FatalLevel, msg)
+	if err == nil {
+		os.Exit(1)
+	}
+	return
 }
 
 // Error ...
-func (e *Entry) Error(msg string) {
-	e.log(ErrorLevel, msg)
+func (e *Entry) Error(msg string) error {
+	return e.log(ErrorLevel, msg)
 }
 
 // Warn ...
-func (e *Entry) Warn(msg string) {
-	e.log(WarnLevel, msg)
+func (e *Entry) Warn(msg string) error {
+	return e.log(WarnLevel, msg)
 }
 
 // Info ...
-func (e *Entry) Info(msg string) {
-	e.log(InfoLevel, msg)
+func (e *Entry) Info(msg string) error {
+	return e.log(InfoLevel, msg)
 }
 
 // Debugf ...
-func (e *Entry) Debugf(format string, a ...interface{}) {
-	e.Debug(fmt.Sprintf(format, a))
+func (e *Entry) Debugf(format string, a ...interface{}) error {
+	return e.Debug(fmt.Sprintf(format, a))
 }
 
 // Fatalf ...
-func (e *Entry) Fatalf(format string, a ...interface{}) {
-	e.Fatal(fmt.Sprintf(format, a))
+func (e *Entry) Fatalf(format string, a ...interface{}) error {
+	return e.Fatal(fmt.Sprintf(format, a))
 }
 
 // Errorf ...
-func (e *Entry) Errorf(format string, a ...interface{}) {
-	e.Error(fmt.Sprintf(format, a))
+func (e *Entry) Errorf(format string, a ...interface{}) error {
+	return e.Error(fmt.Sprintf(format, a))
 }
 
 // Warnf ...
-func (e *Entry) Warnf(format string, a ...interface{}) {
-	e.Warn(fmt.Sprintf(format, a))
+func (e *Entry) Warnf(format string, a ...interface{}) error {
+	return e.Warn(fmt.Sprintf(format, a))
 }
 
 // Infof ...
-func (e *Entry) Infof(format string, a ...interface{}) {
-	e.Info(fmt.Sprintf(format, a))
+func (e *Entry) Infof(format string, a ...interface{}) error {
+	return e.Info(fmt.Sprintf(format, a))
 }
 
 // finalize returns the Entry with all of the correct fields populated.
@@ -151,15 +153,11 @@ func (e *Entry) finalize(level Level, msg string) *Entry {
 // argument level is above the threshold of the Logger's
 // Level field. If the level is good, log calls the Handler's
 // HandlerLog fucntion with the finalized level and message.
-func (e *Entry) log(level Level, msg string) {
+func (e *Entry) log(level Level, msg string) (err error) {
 	l := e.Logger
 	if level < l.Level || level == silentLevel {
 		return
 	}
-	if err := l.Handler.HandleLog(e.finalize(level, msg)); err != nil {
-		stdlog.Printf("error logging: %s", err)
-	}
-	if level == FatalLevel {
-		os.Exit(1)
-	}
+	err = l.Handler.HandleLog(e.finalize(level, msg))
+	return
 }

@@ -58,46 +58,46 @@ func (l *Logger) Debug(msg string) {
 }
 
 // Fatal ...
-func (l *Logger) Fatal(msg string) {
-	newEntry(l).Fatal(msg)
+func (l *Logger) Fatal(msg string) error {
+	return newEntry(l).Fatal(msg)
 }
 
 // Error ...
-func (l *Logger) Error(msg string) {
-	newEntry(l).Error(msg)
+func (l *Logger) Error(msg string) error {
+	return newEntry(l).Error(msg)
 }
 
 // Warn ...
-func (l *Logger) Warn(msg string) {
-	newEntry(l).Warn(msg)
+func (l *Logger) Warn(msg string) error {
+	return newEntry(l).Warn(msg)
 }
 
 // Info ...
-func (l *Logger) Info(msg string) {
-	newEntry(l).Info(msg)
+func (l *Logger) Info(msg string) error {
+	return newEntry(l).Info(msg)
 }
 
 // Debugf ...
-func (l *Logger) Debugf(format string, v ...interface{}) {
-	newEntry(l).Debugf(format, v)
+func (l *Logger) Debugf(format string, v ...interface{}) error {
+	return newEntry(l).Debugf(format, v)
 }
 
 // Fatalf ...
-func (l *Logger) Fatalf(format string, v ...interface{}) {
-	newEntry(l).Fatalf(format, v)
+func (l *Logger) Fatalf(format string, v ...interface{}) error {
+	return newEntry(l).Fatalf(format, v)
 }
 
 // Errorf ...
-func (l *Logger) Errorf(format string, v ...interface{}) {
-	newEntry(l).Errorf(format, v)
+func (l *Logger) Errorf(format string, v ...interface{}) error {
+	return newEntry(l).Errorf(format, v)
 }
 
 // Warnf ...
-func (l *Logger) Warnf(format string, v ...interface{}) {
-	newEntry(l).Errorf(format, v)
+func (l *Logger) Warnf(format string, v ...interface{}) error {
+	return newEntry(l).Errorf(format, v)
 }
 
 // Infof ...
-func (l *Logger) Infof(format string, v ...interface{}) {
-	newEntry(l).Infof(format, v)
+func (l *Logger) Infof(format string, v ...interface{}) error {
+	return newEntry(l).Infof(format, v)
 }

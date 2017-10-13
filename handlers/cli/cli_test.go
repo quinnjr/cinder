@@ -40,12 +40,13 @@ func (cl *CLISuite) TestHandleLog() {
 	})
 
 	logger := cinder.New(cinder.DebugLevel, cl.Handler)
-	logger.WithFields(cinder.Fields{
+	e := logger.WithFields(cinder.Fields{
 		"test1":  "value1",
 		"source": false,
-	}).Info("test message")
+	})
+	e.Info("test message")
 
-	expected := "\x1b[37mdebug\x1b[0m test message              \x1b[37mtest1\x1b[0m=value1\n"
+	expected := e.Timestamp.Format(cli.DefaultTimestamp) + " \x1b[34mINFO\x1b[0m test message        \x1b[34mtest1\x1b[0m=value1    \n"
 
 	cl.Equal(expected, buf.String())
 }
